@@ -1,6 +1,8 @@
 import './style.css'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import gsap from 'gsap'
+import * as dat from 'dat.gui';
 
 /**
  * Base
@@ -11,28 +13,47 @@ const canvas = document.querySelector('canvas.webgl')
 // Scene
 const scene = new THREE.Scene()
 
-// Object
-const geometry = new THREE.BufferGeometry();
-
-// Create 50 triangles
-const count = 50;
-// count * 3 * 3 = count * # of vertices in triangle * # of values in each vertex
-const positionsArray = new Float32Array(count * 3 * 3);
-for (let i=0; i < count * 3 * 3; i++) {
-    positionsArray[i] = (Math.random() - 0.5) * 2; 
-}
-
-const positionsAttribute = new THREE.BufferAttribute(positionsArray, 3);
-geometry.setAttribute('position', positionsAttribute);
-
-const material = new THREE.MeshBasicMaterial({
+/**
+ * Object
+ */
+const geometry = new THREE.BoxGeometry(1, 1, 1)
+const params = {
     color: 0xff0000,
-    wireframe: true,
-});
+    spin: () => {
+        gsap.to(mesh.rotation, {
+            duration: 1,
+            y: mesh.rotation.y + Math.PI * 2,
+        });
+    }
+};
+const material = new THREE.MeshBasicMaterial({ color: params.color });
 const mesh = new THREE.Mesh(geometry, material)
-scene.add(mesh)
+mesh.visible = true;
+scene.add(mesh);
 
-// Sizes
+/**
+ * Debug
+ */
+const gui = new dat.GUI({ closed: true });
+// Mesh
+const meshGUI = gui.addFolder('Mesh');
+meshGUI.add(mesh.position, 'y').min(-10).max(10).step(0.01).name('Position X');
+meshGUI.add(mesh.position, 'x').min(-10).max(10).step(0.01).name('Position Y');
+meshGUI.add(mesh.position, 'z').min(-10).max(10).step(0.01).name('Position Z');
+meshGUI.add(mesh, 'visible');
+meshGUI.add(params, 'spin');
+// Material
+const materialGUI = gui.addFolder('Material');
+materialGUI
+    .addColor(params, 'color').name('Material Color')
+    .onChange( () => {
+        material.color.set(params.color);
+    });
+
+
+/**
+ * Sizes
+ */
 const sizes = {
     width: window.innerWidth,
     height: window.innerHeight
@@ -53,7 +74,10 @@ window.addEventListener('resize', () =>
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 })
 
-// Camera
+/**
+ * Camera
+ */
+// Base camera
 const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
 camera.position.z = 3
 scene.add(camera)
@@ -62,14 +86,18 @@ scene.add(camera)
 const controls = new OrbitControls(camera, canvas)
 controls.enableDamping = true
 
-// Renderer
+/**
+ * Renderer
+ */
 const renderer = new THREE.WebGLRenderer({
     canvas: canvas
 })
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 
-// Animate
+/**
+ * Animate
+ */
 const clock = new THREE.Clock()
 
 const tick = () =>
