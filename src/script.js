@@ -1,8 +1,19 @@
 import './style.css'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import gsap from 'gsap'
-import * as dat from 'dat.gui';
+
+/**
+ * Notes
+ *
+ * PBR Materials = Physically based rendering:
+ * Color: color applied on geometry
+ * Displacement/Height Map = raise/lower vertices
+ * Alpha = opacity (black 0, white 1)
+ * Normal = like displacement, but no vertices subdivision, better performance than displacement, but the plane is still flat, usually PNG since we want really crisp pixels and PNG is losless compression
+ * Ambient Occlusion = Grayscale image, add fake shadows to crevices - not physically accurate
+ * Metalness = Grayscale image, white = shiny, black = flat, mostly for reflection
+ * Roughness = Grayscale image, works in conjunction w/ Metalness, white is rough, black is smooth, mostly for light dissipation
+ */
 
 /**
  * Base
@@ -14,42 +25,47 @@ const canvas = document.querySelector('canvas.webgl')
 const scene = new THREE.Scene()
 
 /**
+ * Textures
+ */
+const loadingManager = new THREE.LoadingManager(); // used to know progress of loading assets - useful for a loader ui
+const textureLoader = new THREE.TextureLoader(loadingManager);
+const colorTexture = textureLoader.load('/textures/minecraft.png');
+const alphaTexture = textureLoader.load('/textures/door/alpha.jpg');
+const heightMap = textureLoader.load('/textures/door/height.jpg');
+const normalTexture = textureLoader.load('/textures/door/normal.jpg');
+const metalnessTexture = textureLoader.load('/textures/door/metalness.jpg');
+const roughnessTexture = textureLoader.load('/textures/door/roughness.jpg');
+const ambientTexture = textureLoader.load('/textures/door/ambientOcclusion.jpg');
+
+// colorTexture.repeat.x = 2;
+// colorTexture.repeat.y = 3;
+// colorTexture.wrapS = THREE.MirroredRepeatWrapping;
+// colorTexture.wrapT = THREE.MirroredRepeatWrapping;
+// colorTexture.offset.x = 0.5;
+// colorTexture.offset.y = 0.5;
+// colorTexture.rotation = Math.PI * 0.25;
+// colorTexture.center.x = 0.5;
+// colorTexture.center.y = 0.5;
+colorTexture.generateMipmaps = false;
+colorTexture.minFilter = THREE.NearestFilter;
+colorTexture.magFilter = THREE.NearestFilter;
+
+/**
  * Object
  */
 const geometry = new THREE.BoxGeometry(1, 1, 1)
-const params = {
-    color: 0xff0000,
-    spin: () => {
-        gsap.to(mesh.rotation, {
-            duration: 1,
-            y: mesh.rotation.y + Math.PI * 2,
-        });
-    }
-};
-const material = new THREE.MeshBasicMaterial({ color: params.color });
+const material = new THREE.MeshBasicMaterial({
+    map: colorTexture,
+    // displacementMap: heightMap,
+    // alphaMap: alphaTexture,
+    // normalMap: normalTexture,
+    // metalnessMap: metalnessTexture,
+    // roughnessMap: roughnessTexture,
+    // aoMap: ambientTexture,
+    // transparent: true,
+});
 const mesh = new THREE.Mesh(geometry, material)
-mesh.visible = true;
-scene.add(mesh);
-
-/**
- * Debug
- */
-const gui = new dat.GUI({ closed: true });
-// Mesh
-const meshGUI = gui.addFolder('Mesh');
-meshGUI.add(mesh.position, 'y').min(-10).max(10).step(0.01).name('Position X');
-meshGUI.add(mesh.position, 'x').min(-10).max(10).step(0.01).name('Position Y');
-meshGUI.add(mesh.position, 'z').min(-10).max(10).step(0.01).name('Position Z');
-meshGUI.add(mesh, 'visible');
-meshGUI.add(params, 'spin');
-// Material
-const materialGUI = gui.addFolder('Material');
-materialGUI
-    .addColor(params, 'color').name('Material Color')
-    .onChange( () => {
-        material.color.set(params.color);
-    });
-
+scene.add(mesh)
 
 /**
  * Sizes
@@ -79,7 +95,9 @@ window.addEventListener('resize', () =>
  */
 // Base camera
 const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
-camera.position.z = 3
+camera.position.x = 1
+camera.position.y = 1
+camera.position.z = 1
 scene.add(camera)
 
 // Controls
