@@ -37,46 +37,31 @@ gradientTexture.generateMipmaps = false;
 
 const cubeTextureLoader = new THREE.CubeTextureLoader(loadingManager);
 const environmentTexture = cubeTextureLoader.load([
-    '/textures/environmentMaps/0/px.jpg', // positive x
-    '/textures/environmentMaps/0/nx.jpg', // negative x
-    '/textures/environmentMaps/0/py.jpg', // positive y
-    '/textures/environmentMaps/0/ny.jpg', // negative y
-    '/textures/environmentMaps/0/pz.jpg', // positive z
-    '/textures/environmentMaps/0/nz.jpg', // negative z
+    '/textures/environmentMaps/hdr/px.png', // positive x
+    '/textures/environmentMaps/hdr/nx.png', // negative x
+    '/textures/environmentMaps/hdr/py.png', // positive y
+    '/textures/environmentMaps/hdr/ny.png', // negative y
+    '/textures/environmentMaps/hdr/pz.png', // positive z
+    '/textures/environmentMaps/hdr/nz.png', // negative z
 ]);
 
 /**
  * Materials
  */
-// const material = new THREE.MeshMatcapMaterial();
-// material.matcap = matcapTexture;
-
-// const material = new THREE.MeshDepthMaterial();
-// material.map = colorTexture;
-
-// const material = new THREE.MeshPhongMaterial(0xffffff, 0.5);
-// material.shininess = 100;
-// material.specular = new THREE.Color(0xff00ff);
-
-// const material = new THREE.MeshToonMaterial();
-// material.gradientMap = gradientTexture;
-
-// const material = new THREE.MeshStandardMaterial({
-//     map: colorTexture,
-//     aoMap: aoTexture,
-//     aoMapIntensity: 1,
-//     displacementMap: heightTexture,
-//     displacementScale: 0.05,
-//     metalnessMap: metalnessTexture,
-//     roughnessMap: roughnessTexture,
-//     normalMap: normalTexture,
-//     alphaMap: alphaTexture,
-//     transparent: true,
-// });
 const material = new THREE.MeshStandardMaterial({
     roughness: 0.2,
     metalness: 0.7,
     envMap: environmentTexture,
+    map: colorTexture,
+    aoMap: aoTexture,
+    aoMapIntensity: 1,
+    displacementMap: heightTexture,
+    displacementScale: 0.05,
+    metalnessMap: metalnessTexture,
+    roughnessMap: roughnessTexture,
+    normalMap: normalTexture,
+    alphaMap: alphaTexture,
+    transparent: true,
 });
 
 const materialFolder = gui.addFolder('Material');
