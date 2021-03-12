@@ -35,6 +35,16 @@ gradientTexture.minFilter = THREE.NearestFilter;
 gradientTexture.magFilter = THREE.NearestFilter;
 gradientTexture.generateMipmaps = false;
 
+const cubeTextureLoader = new THREE.CubeTextureLoader(loadingManager);
+const environmentTexture = cubeTextureLoader.load([
+    '/textures/environmentMaps/0/px.jpg', // positive x
+    '/textures/environmentMaps/0/nx.jpg', // negative x
+    '/textures/environmentMaps/0/py.jpg', // positive y
+    '/textures/environmentMaps/0/ny.jpg', // negative y
+    '/textures/environmentMaps/0/pz.jpg', // positive z
+    '/textures/environmentMaps/0/nz.jpg', // negative z
+]);
+
 /**
  * Materials
  */
@@ -51,19 +61,24 @@ gradientTexture.generateMipmaps = false;
 // const material = new THREE.MeshToonMaterial();
 // material.gradientMap = gradientTexture;
 
+// const material = new THREE.MeshStandardMaterial({
+//     map: colorTexture,
+//     aoMap: aoTexture,
+//     aoMapIntensity: 1,
+//     displacementMap: heightTexture,
+//     displacementScale: 0.05,
+//     metalnessMap: metalnessTexture,
+//     roughnessMap: roughnessTexture,
+//     normalMap: normalTexture,
+//     alphaMap: alphaTexture,
+//     transparent: true,
+// });
 const material = new THREE.MeshStandardMaterial({
-    map: colorTexture,
-    aoMap: aoTexture,
-    aoMapIntensity: 1,
-    displacementMap: heightTexture,
-    displacementScale: 0.05,
-    metalnessMap: metalnessTexture,
-    roughnessMap: roughnessTexture,
-    normalMap: normalTexture,
-    alphaMap: alphaTexture,
-    transparent: true,
+    roughness: 0.2,
+    metalness: 0.7,
+    envMap: environmentTexture,
 });
-material.normalScale.set(0.5, 0.5);
+
 const materialFolder = gui.addFolder('Material');
 materialFolder.add(material, 'metalness').min(0).max(1).step(0.0001);
 materialFolder.add(material, 'roughness').min(0).max(1).step(0.0001);
