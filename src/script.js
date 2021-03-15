@@ -16,6 +16,13 @@ const canvas = document.querySelector('canvas.webgl')
 const scene = new THREE.Scene()
 
 /**
+ * Textures
+ */
+const textureLoader = new THREE.TextureLoader();
+const bakedShadow = textureLoader.load('/textures/bakedShadow.jpg');
+const simpleShadow = textureLoader.load('/textures/simpleShadow.jpg');
+
+/**
  * Lights
  */
 // Ambient light
@@ -66,7 +73,7 @@ scene.add(spotLightCameraHelper);
 spotLightCameraHelper.visible = false;
 
 // Point Light
-const pointLight = new THREE.PointLight(0xff0000, 0.8);
+const pointLight = new THREE.PointLight(0xffffff, 0.8);
 pointLight.castShadow = true;
 pointLight.position.set(-1, 1, 0);
 pointLight.shadow.mapSize.width = 1024;
@@ -103,6 +110,18 @@ plane.position.y = - 0.5
 plane.receiveShadow = true;
 
 scene.add(sphere, plane)
+
+const sphereShadow = new THREE.Mesh(
+    new THREE.PlaneBufferGeometry(1.5, 1.5),
+    new THREE.MeshBasicMaterial({
+        color: 0x000000,
+        alphaMap: simpleShadow,
+        transparent: true
+    })
+);
+sphereShadow.rotation.x = -Math.PI * 0.5;
+sphereShadow.position.y = plane.position.y + 0.01;
+scene.add(sphereShadow);
 
 /**
  * Sizes
@@ -150,7 +169,7 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
 // enable shadows
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = false;
 // set less performant but better looking shadows
 renderer.shadowType = THREE.PCFSoftShadowMap;
 
@@ -165,6 +184,15 @@ const tick = () =>
 
     // Update controls
     controls.update()
+
+    sphere.position.x = Math.cos(elapsedTime * 1.5);
+    sphere.position.z = Math.sin(elapsedTime * 1.5);
+    // Math.abs = turn number positive - keeps y from going below 0 - keeps ball on the floor
+    sphere.position.y = Math.abs(Math.sin(elapsedTime * 3));
+
+    // animate shadow
+    sphereShadow.position.set(sphere.position.x, sphereShadow.position.y, sphere.position.z);
+    sphereShadow.material.opacity = (1 - sphere.position.y) * 0.3;
 
     // Render
     renderer.render(scene, camera)
