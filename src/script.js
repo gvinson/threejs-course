@@ -1,8 +1,6 @@
 import './style.css'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader";
 import * as dat from 'dat.gui'
 
 /**
@@ -10,7 +8,6 @@ import * as dat from 'dat.gui'
  */
 // Debug
 const gui = new dat.GUI()
-const debugObject = {}
 
 // Canvas
 const canvas = document.querySelector('canvas.webgl')
@@ -18,11 +15,84 @@ const canvas = document.querySelector('canvas.webgl')
 // Scene
 const scene = new THREE.Scene()
 
+// Axes Helper
+// const axesHelper = new THREE.AxesHelper();
+// scene.add(axesHelper);
+
 /**
- * Loaders
+ * Textures
  */
-const gltfLoader = new GLTFLoader()
-const cubeTextureLoader = new THREE.CubeTextureLoader()
+const textureLoader = new THREE.TextureLoader();
+const matcapTexture = textureLoader.load('/textures/matcaps/8.png');
+
+/**
+ * Fonts
+ */
+const fontLoader = new THREE.FontLoader();
+fontLoader.load('/fonts/helvetiker_regular.typeface.json', (font) => {
+    const textGeometry = new THREE.TextBufferGeometry('Hello, World!', {
+        font: font,
+        size: 0.5,
+        height: 0.2,
+        curveSegments: 5,
+        bevelEnabled: true,
+        bevelThickness: 0.03,
+        bevelSize: 0.02,
+        bevelOffset: 0,
+        bevelSegments: 4,
+    });
+    const material = new THREE.MeshMatcapMaterial({
+        matcap: matcapTexture,
+    });
+    const textMesh = new THREE.Mesh(textGeometry, material);
+
+    // Center text
+    // textGeometry.computeBoundingBox();
+    // 0.02 = textGeometry bevelSize
+    // textGeometry.translate(
+    //     -(textGeometry.boundingBox.max.x - 0.02) * 0.5,
+    //     -(textGeometry.boundingBox.max.y - 0.02) * 0.5,
+    //     -(textGeometry.boundingBox.max.z - 0.03) * 0.5,
+    // );
+    // center w/ threejs
+    textGeometry.center();
+
+    scene.add(textMesh);
+
+    // Create donuts
+    const donutGeometry = new THREE.TorusBufferGeometry(0.25,0.1,20,45);
+
+    console.time('donuts');
+    for (let i=0; i<100; i++) {
+        const donutMesh = new THREE.Mesh(donutGeometry, material);
+
+        // Random position
+        donutMesh.position.x = (Math.random() - 0.5) * 10; // (0 to 1 - 0.5) * multiplier
+        donutMesh.position.y = (Math.random() - 0.5) * 10;
+        donutMesh.position.z = (Math.random() - 0.5) * 10;
+
+        // Random rotation
+        donutMesh.rotation.x = Math.random() * Math.PI;
+        donutMesh.rotation.z = Math.random() * Math.PI;
+
+        // Random size
+        let scale = Math.random();
+        donutMesh.scale.set(scale, scale, scale);
+
+        scene.add(donutMesh);
+    }
+    console.timeEnd('donuts');
+});
+
+/**
+ * Object
+ */
+const cube = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshBasicMaterial()
+)
+
+//scene.add(cube)
 
 /**
  * Sizes
@@ -31,136 +101,6 @@ const sizes = {
     width: window.innerWidth,
     height: window.innerHeight
 }
-
-/**
- * Camera
- */
-// Base camera
-const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
-camera.position.set(2, 2, 2)
-scene.add(camera)
-
-// Controls
-const controls = new OrbitControls(camera, canvas)
-controls.target.set(0, 0.75, 0)
-controls.enableDamping = true
-
-/**
- * Renderer
- */
-const renderer = new THREE.WebGLRenderer({
-    canvas: canvas,
-    antialias: true
-})
-renderer.physicallyCorrectLights = true
-renderer.outputEncoding = THREE.sRGBEncoding
-renderer.toneMapping = THREE.ReinhardToneMapping
-renderer.toneMappingExposure = 0.955
-renderer.shadowMap.enabled = true
-renderer.shadowMap.type = THREE.PCFSoftShadowMap
-renderer.setSize(sizes.width, sizes.height)
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-gui
-    .add(renderer, 'toneMapping', {
-        No: THREE.NoToneMapping,
-        Linear: THREE.LinearToneMapping,
-        Reinhard: THREE.ReinhardToneMapping,
-        Cineon: THREE.CineonToneMapping,
-        ACESFilmic: THREE.ACESFilmicToneMapping
-    })
-    .onFinishChange(() =>
-    {
-        renderer.toneMapping = Number(renderer.toneMapping)
-        updateAllMaterials()
-    })
-gui.add(renderer, 'toneMappingExposure').min(0).max(10).step(0.001)
-
-const pmremGenerator = new THREE.PMREMGenerator( renderer );
-pmremGenerator.compileEquirectangularShader();
-
-
-/**
- * Lights
- */
-const topLight = new THREE.RectAreaLight(0xffffff, 10, 20, 20);
-topLight.position.set(0, 2, 0);
-scene.add(topLight);
-
-const sideLight = new THREE.RectAreaLight(0xffffff, 5, 10, 20);
-sideLight.position.set(-5, 0, 5);
-scene.add(sideLight);
-
-gui.addFolder('lights');
-gui.add(topLight.position, 'x').min(-5).max(10);
-gui.add(topLight.position, 'y').min(-5).max(10);
-gui.add(topLight.position, 'z').min(-5).max(10);
-gui.add(topLight, 'intensity').min(0).max(100).step(0.01);
-gui.add(sideLight.position, 'x').min(-5).max(10);
-gui.add(sideLight.position, 'y').min(-5).max(10);
-gui.add(sideLight.position, 'z').min(-5).max(10);
-gui.add(sideLight, 'intensity').min(0).max(100).step(0.01);
-
-// light.position.set(0, 0.8, 1.5);
-// //light.castShadow = true
-// light.shadow.camera.far = 15
-// light.shadow.mapSize.set(1024, 1024)
-// //light.shadow.normalBias = 0.05
-// scene.add(light);
-// gui.addFolder('lights');
-// gui.add(light.position, 'x').min(-5).max(10);
-// gui.add(light.position, 'y').min(-5).max(10);
-// gui.add(light.position, 'z').min(-5).max(10);
-// gui.add(light, 'intensity').min(0).max(100).step(0.01).name('lightIntensity');
-
-/**
- * Update all materials
- */
-const updateAllMaterials = () =>
-{
-    scene.traverse((child) =>
-    {
-        if(child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial)
-        {
-            //child.material.envMapIntensity = debugObject.envMapIntensity
-            child.material.needsUpdate = true
-            child.castShadow = true
-            child.receiveShadow = true
-        }
-    })
-}
-
-/**
- * Environment map
- */
-const newLoader = new RGBELoader();
-let environmentMap = null;
-newLoader.load( '/textures/3.hdr', function ( texture ) {
-    const envMap = pmremGenerator.fromEquirectangular( texture ).texture;
-    scene.environment = envMap;
-    texture.dispose();
-    pmremGenerator.dispose();
-    environmentMap = envMap;
-});
-debugObject.envMapIntensity = 0.305;
-gui.add(debugObject, 'envMapIntensity').min(0).max(10).step(0.001).onChange(updateAllMaterials)
-
-/**
- * Models
- */
-let mixer = null;
-gltfLoader.load('/models/model.glb',
-    (gltf) => {
-        mixer = new THREE.AnimationMixer(gltf.scene);
-
-        const visor = mixer.clipAction(gltf.animations[0]);
-        visor.play();
-
-        gltf.scene.position.y = 1;
-        scene.add(gltf.scene)
-
-        updateAllMaterials()
-    },
-)
 
 window.addEventListener('resize', () =>
 {
@@ -178,23 +118,39 @@ window.addEventListener('resize', () =>
 })
 
 /**
+ * Camera
+ */
+// Base camera
+const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
+camera.position.x = 1
+camera.position.y = 1
+camera.position.z = 2
+scene.add(camera)
+
+// Controls
+const controls = new OrbitControls(camera, canvas)
+controls.enableDamping = true
+
+/**
+ * Renderer
+ */
+const renderer = new THREE.WebGLRenderer({
+    canvas: canvas
+})
+renderer.setSize(sizes.width, sizes.height)
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+
+/**
  * Animate
  */
 const clock = new THREE.Clock()
-let previousTime = 0
 
 const tick = () =>
 {
     const elapsedTime = clock.getElapsedTime()
-    const deltaTime = elapsedTime - previousTime
-    previousTime = elapsedTime
 
     // Update controls
     controls.update()
-
-    if (mixer) {
-        mixer.update(deltaTime);
-    }
 
     // Render
     renderer.render(scene, camera)
