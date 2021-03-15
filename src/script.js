@@ -1,6 +1,7 @@
 import './style.css'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { RectAreaLightHelper} from "three/examples/jsm/helpers/RectAreaLightHelper";
 import * as dat from 'dat.gui'
 
 /**
@@ -15,84 +16,98 @@ const canvas = document.querySelector('canvas.webgl')
 // Scene
 const scene = new THREE.Scene()
 
-// Axes Helper
-// const axesHelper = new THREE.AxesHelper();
-// scene.add(axesHelper);
+/**
+ * Lights
+ */
+// Ambient light - good performance
+// Light all sides of objects
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+scene.add(ambientLight);
+gui.add(ambientLight, 'intensity').min(0).max(1).step(0.001);
+
+// // Directional Light = like sun - moderate performance
+const directionalLight = new THREE.DirectionalLight(0xff0000, 0.5);
+directionalLight.position.set(1, 0.25, 0);
+scene.add(directionalLight);
+gui.add(directionalLight, 'intensity').min(0).max(1).step(0.001);
+
+// // Hemisphere light - good performance
+// // red light on top, blue light on bottom - illuminates like ambient light
+const hemisphereLight = new THREE.HemisphereLight('red', 'blue', 0.5);
+scene.add(hemisphereLight);
+gui.add(hemisphereLight, 'intensity').min(0).max(1).step(0.001);
+
+// // Point light - bad performance
+// // distance & decay = distance until light doesnt work anymore
+const pointLight = new THREE.PointLight(0xffffff, 0.5, 2);
+pointLight.position.set(0, -0.5, 1);
+scene.add(pointLight);
+
+// // Rect Light - bad performance
+// // Illuminates like photoshoot light
+const rectAreaLight = new THREE.RectAreaLight(0xffffff, 1, 2, 1);
+rectAreaLight.position.set(-1.5, 0, 1.5);
+// orient light to center of screen
+rectAreaLight.lookAt(new THREE.Vector3()); // empty Vector3 default 0,0,0 - center of scene
+scene.add(rectAreaLight);
+
+// Spotlight
+// Like a flashlight, circlular light
+const spotLight = new THREE.SpotLight(0xff6600, 0.8, 9, Math.PI * 0.1, 0.05, 1);
+spotLight.position.set(0, 2, 3);
+scene.add(spotLight);
+spotLight.target.position.x = -1;
+scene.add(spotLight.target);
+
+// Helpers
+const hemisphereLightHelper = new THREE.HemisphereLightHelper(hemisphereLight, 0.5);
+scene.add(hemisphereLightHelper);
+
+const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 0.5);
+scene.add(directionalLightHelper);
+
+const pointLightHelper = new THREE.PointLightHelper(pointLight, 0.5);
+scene.add(pointLightHelper);
+
+const spotLightHelper = new THREE.SpotLightHelper(spotLight);
+scene.add(spotLightHelper);
+
+const rectAreaLightHelper = new RectAreaLightHelper(rectAreaLight);
+scene.add(rectAreaLightHelper);
 
 /**
- * Textures
+ * Objects
  */
-const textureLoader = new THREE.TextureLoader();
-const matcapTexture = textureLoader.load('/textures/matcaps/8.png');
+// Material
+const material = new THREE.MeshStandardMaterial()
+material.roughness = 0.4
 
-/**
- * Fonts
- */
-const fontLoader = new THREE.FontLoader();
-fontLoader.load('/fonts/helvetiker_regular.typeface.json', (font) => {
-    const textGeometry = new THREE.TextBufferGeometry('Hello, World!', {
-        font: font,
-        size: 0.5,
-        height: 0.2,
-        curveSegments: 5,
-        bevelEnabled: true,
-        bevelThickness: 0.03,
-        bevelSize: 0.02,
-        bevelOffset: 0,
-        bevelSegments: 4,
-    });
-    const material = new THREE.MeshMatcapMaterial({
-        matcap: matcapTexture,
-    });
-    const textMesh = new THREE.Mesh(textGeometry, material);
+// Objects
+const sphere = new THREE.Mesh(
+    new THREE.SphereGeometry(0.5, 32, 32),
+    material
+)
+sphere.position.x = - 1.5
 
-    // Center text
-    // textGeometry.computeBoundingBox();
-    // 0.02 = textGeometry bevelSize
-    // textGeometry.translate(
-    //     -(textGeometry.boundingBox.max.x - 0.02) * 0.5,
-    //     -(textGeometry.boundingBox.max.y - 0.02) * 0.5,
-    //     -(textGeometry.boundingBox.max.z - 0.03) * 0.5,
-    // );
-    // center w/ threejs
-    textGeometry.center();
-
-    scene.add(textMesh);
-
-    // Create donuts
-    const donutGeometry = new THREE.TorusBufferGeometry(0.25,0.1,20,45);
-
-    console.time('donuts');
-    for (let i=0; i<100; i++) {
-        const donutMesh = new THREE.Mesh(donutGeometry, material);
-
-        // Random position
-        donutMesh.position.x = (Math.random() - 0.5) * 10; // (0 to 1 - 0.5) * multiplier
-        donutMesh.position.y = (Math.random() - 0.5) * 10;
-        donutMesh.position.z = (Math.random() - 0.5) * 10;
-
-        // Random rotation
-        donutMesh.rotation.x = Math.random() * Math.PI;
-        donutMesh.rotation.z = Math.random() * Math.PI;
-
-        // Random size
-        let scale = Math.random();
-        donutMesh.scale.set(scale, scale, scale);
-
-        scene.add(donutMesh);
-    }
-    console.timeEnd('donuts');
-});
-
-/**
- * Object
- */
 const cube = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 1, 1),
-    new THREE.MeshBasicMaterial()
+    new THREE.BoxGeometry(0.75, 0.75, 0.75),
+    material
 )
 
-//scene.add(cube)
+const torus = new THREE.Mesh(
+    new THREE.TorusGeometry(0.3, 0.2, 32, 64),
+    material
+)
+torus.position.x = 1.5
+
+const plane = new THREE.Mesh(
+    new THREE.PlaneGeometry(5, 5),
+    material
+)
+plane.rotation.x = - Math.PI * 0.5
+plane.position.y = - 0.65
+
+scene.add(sphere, cube, torus, plane)
 
 /**
  * Sizes
@@ -149,8 +164,20 @@ const tick = () =>
 {
     const elapsedTime = clock.getElapsedTime()
 
+    // Update objects
+    sphere.rotation.y = 0.1 * elapsedTime
+    cube.rotation.y = 0.1 * elapsedTime
+    torus.rotation.y = 0.1 * elapsedTime
+
+    sphere.rotation.x = 0.15 * elapsedTime
+    cube.rotation.x = 0.15 * elapsedTime
+    torus.rotation.x = 0.15 * elapsedTime
+
     // Update controls
     controls.update()
+
+    // have to update helper to point to spotlight target
+    spotLightHelper.update();
 
     // Render
     renderer.render(scene, camera)
