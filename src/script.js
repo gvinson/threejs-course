@@ -1,7 +1,6 @@
 import './style.css'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import { RectAreaLightHelper} from "three/examples/jsm/helpers/RectAreaLightHelper";
 import * as dat from 'dat.gui'
 
 /**
@@ -19,95 +18,91 @@ const scene = new THREE.Scene()
 /**
  * Lights
  */
-// Ambient light - good performance
-// Light all sides of objects
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambientLight);
-gui.add(ambientLight, 'intensity').min(0).max(1).step(0.001);
+// Ambient light
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.25)
+gui.add(ambientLight, 'intensity').min(0).max(1).step(0.001)
+scene.add(ambientLight)
 
-// // Directional Light = like sun - moderate performance
-const directionalLight = new THREE.DirectionalLight(0xff0000, 0.5);
-directionalLight.position.set(1, 0.25, 0);
+// Directional light
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.25)
+directionalLight.position.set(2, 2, - 1)
+directionalLight.castShadow = true;
+// 1024 x 1024 is 1024px "screenshot" for shadow map
+directionalLight.shadow.mapSize.width = 1024;
+directionalLight.shadow.mapSize.height = 1024;
+// set the camera near & far for optimization - keeps camera focus only on scene
+directionalLight.shadow.camera.near = 1;
+directionalLight.shadow.camera.far = 6; // set to 3.5 to see how it works
+// set the orthographic top/left/right/bottom frustrum (width/height) of camera view
+directionalLight.shadow.camera.top = 2;
+directionalLight.shadow.camera.right = 2;
+directionalLight.shadow.camera.bottom = -2;
+directionalLight.shadow.camera.left = -2;
+// set blur of shadow - this doesn't work with PCFSoftShadowMap
+// directionalLight.shadow.radius = 10;
+gui.add(directionalLight, 'intensity').min(0).max(1).step(0.001)
+gui.add(directionalLight.position, 'x').min(- 5).max(5).step(0.001)
+gui.add(directionalLight.position, 'y').min(- 5).max(5).step(0.001)
+gui.add(directionalLight.position, 'z').min(- 5).max(5).step(0.001)
 scene.add(directionalLight);
-gui.add(directionalLight, 'intensity').min(0).max(1).step(0.001);
 
-// // Hemisphere light - good performance
-// // red light on top, blue light on bottom - illuminates like ambient light
-const hemisphereLight = new THREE.HemisphereLight('red', 'blue', 0.5);
-scene.add(hemisphereLight);
-gui.add(hemisphereLight, 'intensity').min(0).max(1).step(0.001);
+const directionalLightCameraHelper = new THREE.CameraHelper(directionalLight.shadow.camera);
+scene.add(directionalLightCameraHelper);
+directionalLightCameraHelper.visible = false;
 
-// // Point light - bad performance
-// // distance & decay = distance until light doesnt work anymore
-const pointLight = new THREE.PointLight(0xffffff, 0.5, 2);
-pointLight.position.set(0, -0.5, 1);
-scene.add(pointLight);
-
-// // Rect Light - bad performance
-// // Illuminates like photoshoot light
-const rectAreaLight = new THREE.RectAreaLight(0xffffff, 1, 2, 1);
-rectAreaLight.position.set(-1.5, 0, 1.5);
-// orient light to center of screen
-rectAreaLight.lookAt(new THREE.Vector3()); // empty Vector3 default 0,0,0 - center of scene
-scene.add(rectAreaLight);
-
-// Spotlight
-// Like a flashlight, circlular light
-const spotLight = new THREE.SpotLight(0xff6600, 0.8, 9, Math.PI * 0.1, 0.05, 1);
-spotLight.position.set(0, 2, 3);
+// spot light
+const spotLight = new THREE.SpotLight(0xffffff, 0.2, 10, Math.PI * 0.3);
+spotLight.castShadow = true;
+spotLight.position.set(0, 2, 2);
+spotLight.shadow.mapSize.width = 1024;
+spotLight.shadow.mapSize.height = 1024;
+spotLight.shadow.camera.fov = 30;
+spotLight.shadow.camera.near = 1;
+spotLight.shadow.camera.far = 6;
 scene.add(spotLight);
-spotLight.target.position.x = -1;
 scene.add(spotLight.target);
+const spotLightCameraHelper = new THREE.SpotLightHelper(spotLight);
+scene.add(spotLightCameraHelper);
+spotLightCameraHelper.visible = false;
 
-// Helpers
-const hemisphereLightHelper = new THREE.HemisphereLightHelper(hemisphereLight, 0.5);
-scene.add(hemisphereLightHelper);
+// Point Light
+const pointLight = new THREE.PointLight(0xff0000, 0.8);
+pointLight.castShadow = true;
+pointLight.position.set(-1, 1, 0);
+pointLight.shadow.mapSize.width = 1024;
+pointLight.shadow.mapSize.height = 1024;
+pointLight.shadow.camera.near = 0.1;
+pointLight.shadow.camera.far = 5;
+scene.add(pointLight);
+const pointLightShadowCameraHelper = new THREE.CameraHelper(pointLight.shadow.camera);
+scene.add(pointLightShadowCameraHelper);
 
-const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 0.5);
-scene.add(directionalLightHelper);
-
-const pointLightHelper = new THREE.PointLightHelper(pointLight, 0.5);
-scene.add(pointLightHelper);
-
-const spotLightHelper = new THREE.SpotLightHelper(spotLight);
-scene.add(spotLightHelper);
-
-const rectAreaLightHelper = new RectAreaLightHelper(rectAreaLight);
-scene.add(rectAreaLightHelper);
+/**
+ * Materials
+ */
+const material = new THREE.MeshStandardMaterial()
+material.roughness = 0.7
+gui.add(material, 'metalness').min(0).max(1).step(0.001)
+gui.add(material, 'roughness').min(0).max(1).step(0.001)
 
 /**
  * Objects
  */
-// Material
-const material = new THREE.MeshStandardMaterial()
-material.roughness = 0.4
-
-// Objects
 const sphere = new THREE.Mesh(
     new THREE.SphereGeometry(0.5, 32, 32),
     material
 )
-sphere.position.x = - 1.5
-
-const cube = new THREE.Mesh(
-    new THREE.BoxGeometry(0.75, 0.75, 0.75),
-    material
-)
-
-const torus = new THREE.Mesh(
-    new THREE.TorusGeometry(0.3, 0.2, 32, 64),
-    material
-)
-torus.position.x = 1.5
+sphere.castShadow = true;
 
 const plane = new THREE.Mesh(
     new THREE.PlaneGeometry(5, 5),
     material
 )
 plane.rotation.x = - Math.PI * 0.5
-plane.position.y = - 0.65
+plane.position.y = - 0.5
+plane.receiveShadow = true;
 
-scene.add(sphere, cube, torus, plane)
+scene.add(sphere, plane)
 
 /**
  * Sizes
@@ -154,6 +149,10 @@ const renderer = new THREE.WebGLRenderer({
 })
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+// enable shadows
+renderer.shadowMap.enabled = true;
+// set less performant but better looking shadows
+renderer.shadowType = THREE.PCFSoftShadowMap;
 
 /**
  * Animate
@@ -164,20 +163,8 @@ const tick = () =>
 {
     const elapsedTime = clock.getElapsedTime()
 
-    // Update objects
-    sphere.rotation.y = 0.1 * elapsedTime
-    cube.rotation.y = 0.1 * elapsedTime
-    torus.rotation.y = 0.1 * elapsedTime
-
-    sphere.rotation.x = 0.15 * elapsedTime
-    cube.rotation.x = 0.15 * elapsedTime
-    torus.rotation.x = 0.15 * elapsedTime
-
     // Update controls
     controls.update()
-
-    // have to update helper to point to spotlight target
-    spotLightHelper.update();
 
     // Render
     renderer.render(scene, camera)
