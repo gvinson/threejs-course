@@ -1,14 +1,17 @@
 import './style.css'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import * as dat from 'dat.gui'
+import * as dat from 'dat.gui';
+import CANNON from 'cannon';
+
+/**
+ * Debug
+ */
+const gui = new dat.GUI()
 
 /**
  * Base
  */
-// Debug
-const gui = new dat.GUI()
-
 // Canvas
 const canvas = document.querySelector('canvas.webgl')
 
@@ -16,33 +19,117 @@ const canvas = document.querySelector('canvas.webgl')
 const scene = new THREE.Scene()
 
 /**
- * Objects
+ * Textures
  */
-const object1 = new THREE.Mesh(
-    new THREE.SphereGeometry(0.5, 16, 16),
-    new THREE.MeshBasicMaterial({ color: '#ff0000' })
-)
-object1.position.x = - 2
+const textureLoader = new THREE.TextureLoader()
+const cubeTextureLoader = new THREE.CubeTextureLoader()
 
-const object2 = new THREE.Mesh(
-    new THREE.SphereGeometry(0.5, 16, 16),
-    new THREE.MeshBasicMaterial({ color: '#ff0000' })
-)
-
-const object3 = new THREE.Mesh(
-    new THREE.SphereGeometry(0.5, 16, 16),
-    new THREE.MeshBasicMaterial({ color: '#ff0000' })
-)
-object3.position.x = 2
-
-scene.add(object1, object2, object3)
+const environmentMapTexture = cubeTextureLoader.load([
+    '/textures/environmentMaps/0/px.png',
+    '/textures/environmentMaps/0/nx.png',
+    '/textures/environmentMaps/0/py.png',
+    '/textures/environmentMaps/0/ny.png',
+    '/textures/environmentMaps/0/pz.png',
+    '/textures/environmentMaps/0/nz.png'
+])
 
 /**
- * Raycaster
+ * Physics
  */
-const raycaster = new THREE.Raycaster();
-const mouse = new THREE.Vector2();
-let currentIntersect = null; // witness variable to see the current intersected object
+// World
+const world = new CANNON.World();
+// world.gravity is not a THREE.Vector3, it is a Vec3 from CannonJS - still same thing though
+// -9.82 = earth gravity
+world.gravity.set(0, -9.82, 0);
+
+// Materials
+const defaultMaterial = new CANNON.Material('default'); // name is whatever you want
+
+const defaultContactMaterial = new CANNON.ContactMaterial(
+    defaultMaterial,
+    defaultMaterial,
+    {
+        friction: 0.1,
+        restitution: 0.7,
+    },
+);
+world.addContactMaterial(defaultContactMaterial);
+
+// Sphere
+const sphereShape = new CANNON.Sphere(0.5); // 0.5 = radius, same as buffer geometry radius
+const sphereBody = new CANNON.Body({
+    mass: 1,
+    position: new CANNON.Vec3(0,3,0),
+    shape: sphereShape,
+    material: defaultMaterial,
+});
+sphereBody.applyLocalForce(
+    new CANNON.Vec3(150, 0, 0),
+    new CANNON.Vec3(0,0,0)
+);
+world.add(sphereBody);
+
+// Floor
+const floorShape = new CANNON.Plane();
+const floorBody = new CANNON.Body();
+floorBody.mass = 0;
+floorBody.position.set(0, 0, 0);
+floorBody.material = defaultMaterial;
+floorBody.addShape(floorShape);
+// by default floorBody rotation is vertical, we need to rotate to horizontal
+floorBody.quaternion.setFromAxisAngle(
+    new CANNON.Vec3(-1, 0, 0),
+    Math.PI * 0.5
+);
+world.add(floorBody);
+
+/**
+ * Test sphere
+ */
+const sphere = new THREE.Mesh(
+    new THREE.SphereGeometry(0.5, 32, 32),
+    new THREE.MeshStandardMaterial({
+        metalness: 0.3,
+        roughness: 0.4,
+        envMap: environmentMapTexture
+    })
+)
+sphere.castShadow = true
+sphere.position.y = 0.5
+scene.add(sphere)
+
+/**
+ * Floor
+ */
+const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(10, 10),
+    new THREE.MeshStandardMaterial({
+        color: '#777777',
+        metalness: 0.3,
+        roughness: 0.4,
+        envMap: environmentMapTexture
+    })
+)
+floor.receiveShadow = true
+floor.rotation.x = - Math.PI * 0.5
+scene.add(floor)
+
+/**
+ * Lights
+ */
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.7)
+scene.add(ambientLight)
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.2)
+directionalLight.castShadow = true
+directionalLight.shadow.mapSize.set(1024, 1024)
+directionalLight.shadow.camera.far = 15
+directionalLight.shadow.camera.left = - 7
+directionalLight.shadow.camera.top = 7
+directionalLight.shadow.camera.right = 7
+directionalLight.shadow.camera.bottom = - 7
+directionalLight.position.set(5, 5, 5)
+scene.add(directionalLight)
 
 /**
  * Sizes
@@ -72,7 +159,7 @@ window.addEventListener('resize', () =>
  */
 // Base camera
 const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
-camera.position.z = 3
+camera.position.set(- 3, 3, 3)
 scene.add(camera)
 
 // Controls
@@ -85,75 +172,44 @@ controls.enableDamping = true
 const renderer = new THREE.WebGLRenderer({
     canvas: canvas
 })
+renderer.shadowMap.enabled = true
+renderer.shadowMap.type = THREE.PCFSoftShadowMap
 renderer.setSize(sizes.width, sizes.height)
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-
-/**
- * Mouse event listener
- */
-window.addEventListener('mousemove', (e) => {
-    // normalize x from -1 to 1 - left -> right
-    mouse.x = ( e.clientX / sizes.width ) * 2 - 1;
-    // normalize y - need to invert because we want +1 at top of screen, -1 at bottom
-    mouse.y = -(e.clientY / sizes.height * 2 - 1);
-});
-
-window.addEventListener('click', (e) => {
-    if (currentIntersect.object) {
-        if (currentIntersect.object === object1) {
-            console.log('click object 1');
-        }
-    }
-});
 
 /**
  * Animate
  */
 const clock = new THREE.Clock()
 
+let oldElapsedTime = 0;
+
 const tick = () =>
 {
-    const elapsedTime = clock.getElapsedTime()
+    const elapsedTime = clock.getElapsedTime();
+    const deltaTime = elapsedTime - oldElapsedTime;
+    oldElapsedTime = elapsedTime;
+
+    // Make "wind"
+    sphereBody.applyForce(
+        new CANNON.Vec3(-0.5, 0, 0),
+        sphereBody.position,
+    );
+
+    // Update physics world
+    // @params = fixed time stamp (1/ 60 = 60fps)
+    //           elapsed time from last step
+    //           how many interactions the world can apply to catch up with potential delay
+    world.step(1 / 60, deltaTime, 3);
+
+    // Update our ThreeJS sphere from physics sphere
+    sphere.position.copy(sphereBody.position);
 
     // Update controls
     controls.update()
 
     // Render
     renderer.render(scene, camera)
-
-    // Animate objects
-    object1.position.y = Math.sin(elapsedTime * 0.2);
-    object2.position.y = Math.sin(elapsedTime) * -1;
-    object3.position.y = Math.sin(elapsedTime * 0.3) * 2;
-
-    // See if mouse is over circle with raycaster
-    raycaster.setFromCamera(mouse, camera);
-
-    const objectsToTest = [object1, object2, object3];
-    const intersects = raycaster.intersectObjects(objectsToTest);
-    // Change all to red
-    for (const intersect of objectsToTest) {
-        intersect.material.color.set('red');
-    }
-    // Change hovered ones to blue
-    for(const intersect of intersects) {
-        intersect.object.material.color.set('blue');
-    }
-
-    // something being hovered
-    if (intersects.length > 0) {
-        if (!currentIntersect) {
-            console.log('mouse enter new object');
-        }
-        currentIntersect = intersects[0];
-    }
-    // nothing being hovered
-    else {
-        if (currentIntersect) {
-            console.log("mouse leave");
-        }
-        currentIntersect = null;
-    }
 
     // Call tick again on the next frame
     window.requestAnimationFrame(tick)
