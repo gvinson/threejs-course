@@ -1,96 +1,93 @@
-import './style.css'
-import * as THREE from 'three'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import './style.css';
+import * as THREE from 'three';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import * as dat from 'dat.gui';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
-import { DRACOLoader} from "three/examples/jsm/loaders/DRACOLoader";
-import * as dat from 'dat.gui'
 
 /**
  * Base
  */
 // Debug
-const gui = new dat.GUI()
+const gui = new dat.GUI();
+const debugObject = {};
 
 // Canvas
-const canvas = document.querySelector('canvas.webgl')
+const canvas = document.querySelector('canvas.webgl');
 
 // Scene
 const scene = new THREE.Scene();
 
 /**
- * Model
+ * Loaders
  */
-const dracoLoader = new DRACOLoader();
-dracoLoader.setDecoderPath('/draco/');
 const gltfLoader = new GLTFLoader();
-gltfLoader.setDRACOLoader(dracoLoader);
-
-let mixer = null;
-
-const model = gltfLoader.load('/models/Fox/glTF/Fox.gltf',
-    (gltf) => {
-        // duplicate array so when you add children, the count doesn't get off
-        // const children = [...gltf.scene.children];
-        // for (const child of children) {
-        //     scene.add(child);
-        // }
-
-        // Animations
-        mixer = new THREE.AnimationMixer(gltf.scene);
-        const action = mixer.clipAction(gltf.animations[0]);
-        const action1 = mixer.clipAction(gltf.animations[1]);
-        action.play();
-        let isPlaying = 'action';
-
-        window.addEventListener('click', () => {
-            if (isPlaying === 'action') {
-                action.stop();
-                action1.play();
-                isPlaying = 'action1';
-            } else {
-                action1.stop();
-                action.play();
-                isPlaying = 'action';
-            }
-        })
-
-        // Add model to scene
-        gltf.scene.scale.set(0.025, 0.025, 0.025);
-        scene.add(gltf.scene);
-    }
-)
+const cubeTextureLoader = new THREE.CubeTextureLoader();
 
 /**
- * Floor
+ * Textures
  */
-const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(10, 10),
-    new THREE.MeshStandardMaterial({
-        color: '#444444',
-        metalness: 0,
-        roughness: 0.5
-    })
-)
-floor.receiveShadow = true
-floor.rotation.x = - Math.PI * 0.5
-scene.add(floor)
+const updateAllMaterials = () => {
+    scene.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshStandardMaterial) {
+            //child.material.envMap = envMap; // commented because scene.environment = envMap;
+            child.material.envMapIntensity = debugObject.envMapIntensity
+            child.material.needsUpdate = true;
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
+    });
+};
+
+const envMap = cubeTextureLoader.load([
+    '/textures/environmentMaps/0/px.jpg',
+    '/textures/environmentMaps/0/nx.jpg',
+    '/textures/environmentMaps/0/py.jpg',
+    '/textures/environmentMaps/0/ny.jpg',
+    '/textures/environmentMaps/0/pz.jpg',
+    '/textures/environmentMaps/0/nz.jpg',
+]);
+// set encoding to set gamma properties to sRGBEncoding = makes materials match blender better
+envMap.encoding = THREE.sRGBEncoding;
+scene.background = envMap;
+scene.environment = envMap;
+
+debugObject.envMapIntensity = 5;
+gui.add(debugObject, 'envMapIntensity').min(0).max(10).step(0.001).onChange(updateAllMaterials);
+
+/**
+ * Models
+ */
+gltfLoader.load('/models/FlightHelmet/glTF/FlightHelmet.gltf', (gltf) => {
+    gltf.scene.scale.set(10, 10, 10)
+    gltf.scene.position.set(0, - 4, 0)
+    gltf.scene.rotation.y = Math.PI * 0.5
+
+    // GUI
+    const sceneFolder = gui.addFolder('Scene');
+    sceneFolder.add(gltf.scene.rotation, 'y').min(-Math.PI).max(Math.PI).step(0.001);
+    scene.add(gltf.scene);
+
+    updateAllMaterials();
+});
 
 /**
  * Lights
  */
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.8)
-scene.add(ambientLight)
-
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6)
+const directionalLight = new THREE.DirectionalLight(0xffffff, 3);
+directionalLight.position.set(0.25, 3, -2.25);
+// shadows
 directionalLight.castShadow = true
-directionalLight.shadow.mapSize.set(1024, 1024)
-directionalLight.shadow.camera.far = 15
-directionalLight.shadow.camera.left = - 7
-directionalLight.shadow.camera.top = 7
-directionalLight.shadow.camera.right = 7
-directionalLight.shadow.camera.bottom = - 7
-directionalLight.position.set(5, 5, 5)
-scene.add(directionalLight)
+// optimize shadows
+directionalLight.shadow.camera.far = 15;
+directionalLight.shadow.mapSize.set(1024,1024);
+scene.add(directionalLight);
+scene.add(directionalLight.target);
+
+const directionalLightFolder = gui.addFolder('Directional Light');
+directionalLightFolder.add(directionalLight, 'intensity').min(0).max(10).step(0.001);
+directionalLightFolder.add(directionalLight.target.position,'x').min(-10).max(10).step(0.001);
+directionalLightFolder.add(directionalLight.target.position,'y').min(-10).max(10).step(0.001);
+directionalLightFolder.add(directionalLight.target.position,'z').min(-10).max(10).step(0.001);
 
 /**
  * Sizes
@@ -98,72 +95,80 @@ scene.add(directionalLight)
 const sizes = {
     width: window.innerWidth,
     height: window.innerHeight
-}
+};
 
 window.addEventListener('resize', () =>
 {
     // Update sizes
-    sizes.width = window.innerWidth
-    sizes.height = window.innerHeight
+    sizes.width = window.innerWidth;
+    sizes.height = window.innerHeight;
 
     // Update camera
-    camera.aspect = sizes.width / sizes.height
+    camera.aspect = sizes.width / sizes.height;
     camera.updateProjectionMatrix()
 
     // Update renderer
-    renderer.setSize(sizes.width, sizes.height)
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
-})
+    renderer.setSize(sizes.width, sizes.height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+});
 
 /**
  * Camera
  */
 // Base camera
-const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100)
-camera.position.set(2, 2, 2)
-scene.add(camera)
+const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100);
+camera.position.set(4, 1, - 7);
+scene.add(camera);
 
 // Controls
-const controls = new OrbitControls(camera, canvas)
-controls.target.set(0, 0.75, 0)
-controls.enableDamping = true
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
 
 /**
  * Renderer
  */
 const renderer = new THREE.WebGLRenderer({
-    canvas: canvas
-})
-renderer.shadowMap.enabled = true
-renderer.shadowMap.type = THREE.PCFSoftShadowMap
-renderer.setSize(sizes.width, sizes.height)
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    canvas: canvas,
+    antialias: true,
+});
+renderer.setSize(sizes.width, sizes.height);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+// set properties to fix material colors
+renderer.physicallyCorrectLights = true;
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ReinhardToneMapping;
+renderer.toneMappingExposure = 3;
+// enable shadows
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const rendererFolder = gui.addFolder('Renderer');
+rendererFolder.add(renderer, 'toneMapping', {
+    No: THREE.NoToneMapping,
+    Linear: THREE.LinearToneMapping,
+    Reinhard: THREE.ReinhardToneMapping,
+    Cineon: THREE.CineonToneMapping,
+    ACES: THREE.ACESFilmicToneMapping
+}).onFinishChange(() => {
+    renderer.toneMapping = Number(renderer.toneMapping);
+    updateAllMaterials();
+});
+rendererFolder.add(renderer, 'toneMappingExposure').min(0).max(10).step(0.001);
+
 
 /**
  * Animate
  */
-const clock = new THREE.Clock()
-let previousTime = 0
-
 const tick = () =>
 {
-    const elapsedTime = clock.getElapsedTime()
-    const deltaTime = elapsedTime - previousTime
-    previousTime = elapsedTime
-
-    // Update animations from time since last tick
-    if (mixer) {
-        mixer.update(deltaTime);
-    }
-
     // Update controls
-    controls.update()
+    controls.update();
 
     // Render
-    renderer.render(scene, camera)
+    renderer.render(scene, camera);
 
     // Call tick again on the next frame
-    window.requestAnimationFrame(tick)
-}
+    window.requestAnimationFrame(tick);
+};
 
-tick()
+tick();
