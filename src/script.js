@@ -38,7 +38,21 @@ const model = gltfLoader.load('/models/Fox/glTF/Fox.gltf',
         // Animations
         mixer = new THREE.AnimationMixer(gltf.scene);
         const action = mixer.clipAction(gltf.animations[0]);
+        const action1 = mixer.clipAction(gltf.animations[1]);
         action.play();
+        let isPlaying = 'action';
+
+        window.addEventListener('click', () => {
+            if (isPlaying === 'action') {
+                action.stop();
+                action1.play();
+                isPlaying = 'action1';
+            } else {
+                action1.stop();
+                action.play();
+                isPlaying = 'action';
+            }
+        })
 
         // Add model to scene
         gltf.scene.scale.set(0.025, 0.025, 0.025);
